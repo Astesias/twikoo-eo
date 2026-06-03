@@ -1151,8 +1151,8 @@ export async function onRequest (context) {
       }
 
       if (method === 'GET') {
-        // 资源代理：GET /api/resource?key=xxx
-        if (url.pathname === '/api/resource') {
+        // 资源代理：任意 GET 带 ?key= 参数 → 从 Blob 读取文件
+        if (url.searchParams.get('key')) {
           await handleResource(url, res);
           return;
         }
