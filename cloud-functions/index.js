@@ -1080,10 +1080,31 @@ async function handleResource(url, res) {
 // Admin API：POST 上传/删除 Blob 文件
 async function handleAdmin(request, url, res) {
   const action = url.searchParams.get('action');
+  const store = getStore('resources');
+
+  // 登录验证（无需 key）
+  if (action === 'login') {
+    try {
+      const { pwd } = await request.json();
+      if (!pwd) { res.json({ ok: false, error: 'Missing password' }); return; }
+      const hash = await sha256(pwd);
+      const stored = await store.get('config:admin', { type: 'json' });
+      if (!stored || !stored.pwdHash) {
+        // 首次使用：存储初始密码（用当前传入的哈希）
+        await store.setJSON('config:admin', { pwdHash: hash });
+        res.json({ ok: true, autoCreated: true });
+        return;
+      }
+      if (hash !== stored.pwdHash) { res.json({ ok: false, error: '密码错误' }); return; }
+      res.json({ ok: true });
+    } catch (e) {
+      res.json({ ok: false, error: e.message });
+    }
+    return;
+  }
+
   const key = url.searchParams.get('key');
   if (!key) { res.json({ error: 'Missing key' }); return; }
-
-  const store = getStore('resources');
 
   if (action === 'upload') {
     try {
