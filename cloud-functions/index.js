@@ -1040,6 +1040,7 @@ async function handleResource(url, res) {
     if (url.searchParams.get('list') === '1') {
       const { blobs } = await store.list({ prefix: key });
       const files = blobs.map(b => b.key.replace(key, '')).filter(n => n && !n.includes('/'));
+      res.setHeader('Access-Control-Allow-Origin', '*');
       res.json({ files });
       return;
     }
@@ -1070,6 +1071,7 @@ async function handleResource(url, res) {
 
     res.setHeader('Content-Type', ct);
     res.setHeader('Cache-Control', cache);
+    res.setHeader('Access-Control-Allow-Origin', '*');
     if (headers.etag) res.setHeader('ETag', headers.etag);
     res.send(body);
   } catch (e) {
