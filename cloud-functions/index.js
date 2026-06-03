@@ -1013,6 +1013,60 @@ async function getRecentComments (event, db) {
   return res
 }
 
+// 资源代理：GET /api/resource?key=xxx → Blob 文件
+const MIME_MAP = {
+  '.js': 'application/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.xml': 'text/xml; charset=utf-8',
+  '.txt': 'text/plain; charset=utf-8',
+  '.md': 'text/markdown; charset=utf-8',
+  '.woff': 'font/woff', '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf', '.eot': 'application/vnd.ms-fontobject',
+  '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif', '.webp': 'image/webp', '.avif': 'image/avif',
+};
+
+async function handleResource(url, res) {
+  const key = url.searchParams.get('key');
+  if (!key) { res.status(400).json({ error: 'Missing key' }); return; }
+
+  try {
+    const store = getStore('resources');
+
+    // 目录列表
+    if (url.searchParams.get('list') === '1') {
+      const { blobs } = await store.list({ prefix: key });
+      const files = blobs.map(b => b.key.replace(key, '')).filter(n => n && !n.includes('/'));
+      res.json({ files });
+      return;
+    }
+
+    // 读取文件
+    const result = await store.getWithHeaders(key);
+    if (!result) { res.status(404).json({ error: 'Not Found' }); return; }
+
+    const ext = (key.match(/\.[a-z0-9]+$/i) || [''])[0].toLowerCase();
+    const ct = result.headers['content-type'] || MIME_MAP[ext] || 'application/octet-stream';
+
+    // 缓存策略
+    let cache = 'public, max-age=3600';
+    if (/\.(js|css|woff2?|ttf|ico|png|jpe?g|gif|webp|avif|svg)$/i.test(key))
+      cache = 'public, max-age=31536000, immutable';
+    else if (/\.(json|md|txt|xml)$/i.test(key))
+      cache = 'public, max-age=60, must-revalidate';
+
+    res.setHeader('Content-Type', ct);
+    res.setHeader('Cache-Control', cache);
+    res.setHeader('ETag', result.headers.etag || '');
+    res.send(result.body);
+  } catch (e) {
+    console.error('Resource error:', e.message);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+}
+
 // EdgeOne Pages Node Function 入口
 export async function onRequest (context) {
   const { request } = context
@@ -1097,6 +1151,11 @@ export async function onRequest (context) {
       }
 
       if (method === 'GET') {
+        // 资源代理：GET /api/resource?key=xxx
+        if (url.pathname === '/api/resource') {
+          await handleResource(url, res);
+          return;
+        }
         res.json({
           code: RES_CODE.SUCCESS,
           message: 'Twikoo 云函数运行正常，请参考 https://twikoo.js.org/frontend.html 完成前端的配置',
