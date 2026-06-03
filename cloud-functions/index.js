@@ -1031,6 +1031,7 @@ const MIME_MAP = {
 async function handleResource(url, res) {
   const key = url.searchParams.get('key');
   if (!key) { res.status(400).json({ error: 'Missing key' }); return; }
+  key = key.replace(/^\/+/, '');  // ← 加这行
 
   try {
     const store = getStore('resources');
