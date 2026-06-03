@@ -1081,18 +1081,17 @@ async function handleResource(url, res) {
 async function handleAdmin(request, url, res) {
   const action = url.searchParams.get('action');
   const key = url.searchParams.get('key');
-  if (!key) { res.status(400).json({ error: 'Missing key' }); return; }
+  if (!key) { res.json({ error: 'Missing key' }); return; }
 
   const store = getStore('resources');
 
   if (action === 'upload') {
     try {
-      const contentType = request.headers.get('content-type') || 'application/octet-stream';
       const body = await request.arrayBuffer();
       await store.set(key, new Uint8Array(body));
       res.json({ ok: true, key });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.json({ error: e.message });
     }
     return;
   }
@@ -1102,7 +1101,7 @@ async function handleAdmin(request, url, res) {
       await store.delete(key);
       res.json({ ok: true, key });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.json({ error: e.message });
     }
     return;
   }
@@ -1113,12 +1112,12 @@ async function handleAdmin(request, url, res) {
       const files = blobs.map(b => ({ key: b.key, size: 0, etag: b.etag }));
       res.json({ files, directories: directories || [] });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      res.json({ error: e.message });
     }
     return;
   }
 
-  res.status(400).json({ error: 'Unknown action' });
+  res.json({ error: 'Unknown action' });
 }
 
 // EdgeOne Pages Node Function 入口
@@ -1137,6 +1136,35 @@ export async function onRequest (context) {
       request.headers.forEach((value, key) => {
         headers[key.toLowerCase()] = value
       })
+
+      // Admin API 需要原始 body（不预先消费）
+      if (method === 'POST' && url.searchParams.get('action')) {
+        const res = {
+          status: (code) => { /* handled in handleAdmin */ return res },
+          setHeader: (name, value) => { /* handled in handleAdmin */ },
+          json: (data) => {
+            resolve(new Response(JSON.stringify(data), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            }))
+          },
+          send: (data) => {
+            resolve(new Response(data, {
+              status: 200,
+              headers: { 'Access-Control-Allow-Origin': '*' }
+            }))
+          }
+        }
+        try {
+          await handleAdmin(request, url, res)
+        } catch (e) {
+          resolve(new Response(JSON.stringify({ error: e.message }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          }))
+        }
+        return
+      }
 
       let body = null
       if (method === 'POST' || method === 'PUT' || method === 'PATCH') {
@@ -1219,11 +1247,6 @@ export async function onRequest (context) {
       }
 
       if (method === 'POST') {
-        // Admin API：POST ?action=upload|delete|list
-        if (url.searchParams.get('action')) {
-          await handleAdmin(request, url, res);
-          return;
-        }
         // 调用主处理逻辑
         await handlePost(req, res)
         return
