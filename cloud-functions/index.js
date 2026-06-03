@@ -1067,6 +1067,50 @@ async function handleResource(url, res) {
   }
 }
 
+// Admin API：POST 上传/删除 Blob 文件
+async function handleAdmin(request, url, res) {
+  const action = url.searchParams.get('action');
+  const key = url.searchParams.get('key');
+  if (!key) { res.status(400).json({ error: 'Missing key' }); return; }
+
+  const store = getStore('resources');
+
+  if (action === 'upload') {
+    try {
+      const contentType = request.headers.get('content-type') || 'application/octet-stream';
+      const body = await request.arrayBuffer();
+      await store.set(key, new Uint8Array(body));
+      res.json({ ok: true, key });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+    return;
+  }
+
+  if (action === 'delete') {
+    try {
+      await store.delete(key);
+      res.json({ ok: true, key });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+    return;
+  }
+
+  if (action === 'list') {
+    try {
+      const { blobs, directories } = await store.list({ prefix: key, directories: true });
+      const files = blobs.map(b => ({ key: b.key, size: 0, etag: b.etag }));
+      res.json({ files, directories: directories || [] });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+    return;
+  }
+
+  res.status(400).json({ error: 'Unknown action' });
+}
+
 // EdgeOne Pages Node Function 入口
 export async function onRequest (context) {
   const { request } = context
@@ -1165,6 +1209,11 @@ export async function onRequest (context) {
       }
 
       if (method === 'POST') {
+        // Admin API：POST ?action=upload|delete|list
+        if (url.searchParams.get('action')) {
+          await handleAdmin(request, url, res);
+          return;
+        }
         // 调用主处理逻辑
         await handlePost(req, res)
         return
