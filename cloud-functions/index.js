@@ -1044,11 +1044,21 @@ async function handleResource(url, res) {
     }
 
     // 读取文件
-    const result = await store.getWithHeaders(key);
-    if (!result) { res.status(404).json({ error: 'Not Found' }); return; }
+    const isBinary = /\.(jpg|jpeg|png|gif|webp|avif|svg|ico|woff2?|ttf|eot|mp4|webm|mp3|pdf|zip)$/i.test(key);
+    let body, headers;
+    if (isBinary) {
+      body = await store.get(key, { type: 'arrayBuffer' });
+      if (!body) { res.status(404).json({ error: 'Not Found' }); return; }
+      headers = {};
+    } else {
+      const result = await store.getWithHeaders(key);
+      if (!result) { res.status(404).json({ error: 'Not Found' }); return; }
+      body = result.body;
+      headers = result.headers;
+    }
 
     const ext = (key.match(/\.[a-z0-9]+$/i) || [''])[0].toLowerCase();
-    const ct = result.headers['content-type'] || MIME_MAP[ext] || 'application/octet-stream';
+    const ct = headers['content-type'] || MIME_MAP[ext] || 'application/octet-stream';
 
     // 缓存策略
     let cache = 'public, max-age=3600';
@@ -1059,8 +1069,8 @@ async function handleResource(url, res) {
 
     res.setHeader('Content-Type', ct);
     res.setHeader('Cache-Control', cache);
-    res.setHeader('ETag', result.headers.etag || '');
-    res.send(result.body);
+    if (headers.etag) res.setHeader('ETag', headers.etag);
+    res.send(body);
   } catch (e) {
     console.error('Resource error:', e.message);
     res.status(500).json({ error: 'Internal Server Error' });
