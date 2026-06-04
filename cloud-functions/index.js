@@ -1030,7 +1030,7 @@ const MIME_MAP = {
 
 async function handleResource(url, res) {
   let key = url.searchParams.get('key');
-  if (!key) { res.status(400).json({ error: 'Missing key' }); return; }
+  if (key === null) { res.status(400).json({ error: 'Missing key' }); return; }
   key = key.replace(/^\/+/, '');  // ← 加这行
 
   try {
@@ -1107,7 +1107,7 @@ async function handleAdmin(request, url, res) {
   }
 
   const key = url.searchParams.get('key');
-  if (!key) { res.json({ error: 'Missing key' }); return; }
+  if (key === null) { res.json({ error: 'Missing key' }); return; }
 
   if (action === 'upload') {
     try {
