@@ -7,6 +7,7 @@
  */
 
 import { getStore } from '@edgeone/pages-blob'
+import { Resend } from 'resend'
 import { v4 as uuidv4 } from 'uuid'
 import xss from 'xss'
 import bowser from 'bowser'
@@ -859,6 +860,27 @@ async function postSubmit (comment, db) {
 
     // 发送通知
     await sendNotice(comment, config, getParentComment)
+
+    // 发送邮件通知站长
+    if (!comment.isSpam) {
+      try {
+        const resend = new Resend(process.env.RESEND_API_KEY)
+        const articlePath = comment.url || comment.href || '未知页面'
+        const commentText = (comment.comment || '').replace(/<[^>]*>/g, '').substring(0, 200)
+        await resend.emails.send({
+          from: 'Astesias Blog <onboarding@resend.dev>',
+          to: '2264168148@qq.com',
+          subject: `[新评论] ${comment.nick || '匿名'} 在 ${articlePath}`,
+          html: `<p><strong>${comment.nick || '匿名'}</strong> 评论了文章：</p>
+<p>📄 路由：<code>${articlePath}</code></p>
+<p>💬 内容：${commentText}${(comment.comment || '').length > 200 ? '...' : ''}</p>
+<p><a href="https://asterias.top${articlePath}">查看详情 →</a></p>`,
+        })
+        logger.log('邮件通知已发送')
+      } catch (e) {
+        logger.warn('邮件通知发送失败', e.message)
+      }
+    }
   } catch (e) {
     logger.warn('POST_SUBMIT 失败', e)
   }
