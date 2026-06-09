@@ -2,117 +2,110 @@
  * EdgeOne Pages Function — Bitiful S3 代理
  * 使用只读密钥签名请求，代理到 Bitiful S3
  * 
- * 部署到 EdgeOne Pages 函数的 /api/bitiful 路径
- * 用法: https://your-project.edgeone.app/api/bitiful?key=js/app.js
+ * 部署路径: cloud-functions/api/bitiful.js
+ * 用法: https://resource.asterias.top/api/bitiful?key=js/app.js
  */
 
-const https = require('https');
-const crypto = require('crypto');
-
-// Bitiful S3 只读密钥（前端安全）
 const ACCESS_KEY = process.env.BITIFUL_ACCESS_KEY || 'lKnad3cpfMjXazmw6iPU3HvC';
 const SECRET_KEY = process.env.BITIFUL_SECRET_KEY || 'W94emz8M6CVpM7ycidmt4HyF6gHINcb';
 const BUCKET = 'my-blob-resource';
 const ENDPOINT = 's3.bitiful.net';
 const REGION = 'us-east-1';
-const SERVICE = 's3';
 
-function sha256(data) {
-  return crypto.createHash('sha256').update(data).digest('hex');
+async function sha256(data) {
+  const d = new TextEncoder().encode(data);
+  const h = await crypto.subtle.digest('SHA-256', d);
+  return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-function hmac(key, data) {
-  return crypto.createHmac('sha256', key).update(data).digest();
+async function hmacSha256(key, data) {
+  const k = typeof key === 'string' ? new TextEncoder().encode(key) : key;
+  const d = typeof data === 'string' ? new TextEncoder().encode(data) : data;
+  const cryptoKey = await crypto.subtle.importKey('raw', k, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', cryptoKey, d);
+  return new Uint8Array(sig);
 }
 
-function getSignatureKey(key, dateStamp, region, service) {
-  const kDate = hmac('AWS4' + key, dateStamp);
-  const kRegion = hmac(kDate, region);
-  const kService = hmac(kRegion, service);
-  return hmac(kService, 'aws4_request');
+function toHex(buf) {
+  return Array.from(buf).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-function signRequest(method, key, headers, payload) {
+async function signRequest(method, objectKey) {
   const now = new Date();
   const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
   const dateStamp = amzDate.substring(0, 8);
+  const payloadHash = await sha256('');
+  const host = `${BUCKET}.${ENDPOINT}`;
 
-  headers['x-amz-date'] = amzDate;
-  headers['x-amz-content-sha256'] = sha256(payload || '');
-  headers['host'] = `${BUCKET}.${ENDPOINT}`;
-
-  const signedHeaders = Object.keys(headers)
-    .filter(h => h.startsWith('x-amz-') || h === 'host')
-    .sort()
-    .join(';');
-
-  const canonicalHeaders = Object.keys(headers)
-    .filter(h => h.startsWith('x-amz-') || h === 'host')
-    .sort()
-    .map(h => `${h}:${headers[h]}`)
-    .join('\n');
+  const canonicalHeaders = `host:${host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\n`;
+  const signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
 
   const canonicalRequest = [
     method,
-    `/${key}`,
+    `/${objectKey}`,
     '',
     canonicalHeaders,
-    '',
     signedHeaders,
-    headers['x-amz-content-sha256'],
+    payloadHash,
   ].join('\n');
 
-  const credentialScope = `${dateStamp}/${REGION}/${SERVICE}/aws4_request`;
+  const credentialScope = `${dateStamp}/${REGION}/s3/aws4_request`;
   const stringToSign = [
     'AWS4-HMAC-SHA256',
     amzDate,
     credentialScope,
-    sha256(canonicalRequest),
+    await sha256(canonicalRequest),
   ].join('\n');
 
-  const signingKey = getSignatureKey(SECRET_KEY, dateStamp, REGION, SERVICE);
-  const signature = hmac(signingKey, stringToSign).toString('hex');
+  const kDate = await hmacSha256('AWS4' + SECRET_KEY, dateStamp);
+  const kRegion = await hmacSha256(kDate, REGION);
+  const kService = await hmacSha256(kRegion, 's3');
+  const signingKey = await hmacSha256(kService, 'aws4_request');
+  const signature = toHex(await hmacSha256(signingKey, stringToSign));
 
-  return `AWS4-HMAC-SHA256 Credential=${ACCESS_KEY}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+  return {
+    authorization: `AWS4-HMAC-SHA256 Credential=${ACCESS_KEY}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
+    amzDate,
+    payloadHash,
+  };
 }
 
-exports.main = async (event) => {
-  const { key } = event.queryStringParameters || {};
-  if (!key) return { statusCode: 400, body: 'Missing ?key=' };
+export async function onRequest(context) {
+  const url = new URL(context.request.url);
+  const key = url.searchParams.get('key');
+  if (!key) return new Response('Missing ?key=', { status: 400, headers: { 'Access-Control-Allow-Origin': '*' } });
 
-  const headers = {};
-  const authorization = signRequest('GET', key, headers);
+  try {
+    const { authorization, amzDate, payloadHash } = await signRequest('GET', key);
 
-  headers['Authorization'] = authorization;
-  headers['Accept'] = '*/*';
-
-  return new Promise((resolve) => {
-    const req = https.request({
-      hostname: `${BUCKET}.${ENDPOINT}`,
-      port: 443,
-      path: `/${encodeURI(key)}`,
-      method: 'GET',
-      headers,
-    }, (res) => {
-      const chunks = [];
-      res.on('data', c => chunks.push(c));
-      res.on('end', () => {
-        const body = Buffer.concat(chunks);
-        const ct = res.headers['content-type'] || 'application/octet-stream';
-        resolve({
-          statusCode: res.statusCode,
-          headers: {
-            'Content-Type': ct,
-            'Access-Control-Allow-Origin': '*',
-            'Cache-Control': 'public, max-age=31536000, immutable',
-            'ETag': res.headers.etag || '',
-          },
-          body: body.toString('base64'),
-          isBase64Encoded: true,
-        });
-      });
+    const s3Url = `https://${BUCKET}.${ENDPOINT}/${encodeURI(key)}`;
+    const resp = await fetch(s3Url, {
+      headers: {
+        'Authorization': authorization,
+        'x-amz-date': amzDate,
+        'x-amz-content-sha256': payloadHash,
+        'host': `${BUCKET}.${ENDPOINT}`,
+      },
     });
-    req.on('error', (e) => resolve({ statusCode: 502, body: e.message }));
-    req.end();
-  });
-};
+
+    if (!resp.ok) {
+      return new Response(`S3 ${resp.status}`, { status: resp.status, headers: { 'Access-Control-Allow-Origin': '*' } });
+    }
+
+    const body = await resp.arrayBuffer();
+    const ct = resp.headers.get('content-type') || 'application/octet-stream';
+    const etag = resp.headers.get('etag') || '';
+
+    return new Response(body, {
+      status: 200,
+      headers: {
+        'Content-Type': ct,
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'public, max-age=31536000, immutable',
+        'ETag': etag,
+      },
+    });
+  } catch (e) {
+    return new Response(e.message, { status: 502, headers: { 'Access-Control-Allow-Origin': '*' } });
+  }
+}
