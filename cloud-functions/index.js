@@ -319,7 +319,7 @@ function matchCondition (comment, key, value) {
 const COMMENTS_KEY = 'comments:all'
 
 function createBlobDatabase () {
-  const store = getStore({ name: 'twikoo', consistency: 'eventual' })
+  const store = getStore({ name: 'twikoo', consistency: 'strong' })
   let commentsCache = null
 
   return {
