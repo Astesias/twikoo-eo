@@ -3,7 +3,7 @@
  * (c) 2020-present iMaeGoo
  * Released under the MIT License.
  *
- * 使用 twikoo-func 实现核心逻辑，通过 Cloud Function 操作 Blob 数据库
+ * 使用 twikoo-func 实现核心逻辑，通过 Cloud Function 操作 Blob 数据�?
  */
 
 import { getStore } from '@edgeone/pages-blob'
@@ -57,7 +57,7 @@ import constants from 'twikoo-func/utils/constants'
 const { RES_CODE, MAX_REQUEST_TIMES } = constants
 const VERSION = '1.7.11'
 
-// 注入自定义依赖（对标 Cloudflare 版本）
+// 注入自定义依赖（对标 Cloudflare 版本�?
 setCustomLibs({
   DOMPurify: {
     sanitize (input) {
@@ -69,13 +69,13 @@ setCustomLibs({
       return {
         verify () {
           if (!mailConfig.service || (mailConfig.service.toLowerCase() !== 'sendgrid' && mailConfig.service.toLowerCase() !== 'mailchannels')) {
-            throw new Error('仅支持 SendGrid 和 MailChannels 邮件服务。')
+            throw new Error('仅支�?SendGrid �?MailChannels 邮件服务�?)
           }
           if (!mailConfig.auth || !mailConfig.auth.user) {
-            throw new Error('需要在 SMTP_USER 中配置账户名，如果邮件服务不需要可随意填写。')
+            throw new Error('需要在 SMTP_USER 中配置账户名，如果邮件服务不需要可随意填写�?)
           }
           if (!mailConfig.auth || !mailConfig.auth.pass) {
-            throw new Error('需要在 SMTP_PASS 中配置 API 令牌。')
+            throw new Error('需要在 SMTP_PASS 中配�?API 令牌�?)
           }
           return true
         },
@@ -120,7 +120,7 @@ const md5 = getMd5()
 const sha256 = getSha256()
 const xml2js = getXml2js()
 
-// ==================== 本地实现的 parseComment（替代 twikoo-func 版本）====================
+// ==================== 本地实现�?parseComment（替�?twikoo-func 版本�?===================
 
 /**
  * 修复 OS 版本名称
@@ -157,7 +157,7 @@ function fixOS (ua) {
 }
 
 /**
- * 获取回复人昵称
+ * 获取回复人昵�?
  */
 function getRuser (pid, comments = []) {
   const comment = comments.find((item) => item._id === pid)
@@ -165,7 +165,7 @@ function getRuser (pid, comments = []) {
 }
 
 /**
- * 将评论记录转换为前端需要的格式（使用本地 IP 归属地查询）
+ * 将评论记录转换为前端需要的格式（使用本�?IP 归属地查询）
  */
 function toCommentDto (comment, uid, replies = [], comments = [], cfg) {
   let displayOs = ''
@@ -177,7 +177,7 @@ function toCommentDto (comment, uid, replies = [], comments = [], cfg) {
       displayOs = [os.name, os.versionName ? os.versionName : os.version].join(' ')
       displayBrowser = [ua.getBrowserName(), ua.getBrowserVersion()].join(' ')
     } catch (e) {
-      logger.warn('bowser 错误：', e)
+      logger.warn('bowser 错误�?, e)
     }
   }
   const showRegion = !!cfg.SHOW_REGION && cfg.SHOW_REGION !== 'false'
@@ -223,7 +223,7 @@ function parseComment (comments, uid, cfg) {
 }
 
 /**
- * 为管理后台解析评论
+ * 为管理后台解析评�?
  */
 function parseCommentForAdmin (comments) {
   for (const comment of comments) {
@@ -256,7 +256,7 @@ function getAllowedOrigin (req) {
   return origin
 }
 
-// 获取 IP（优先使用 EdgeOne 提供的 eo-connecting-ip）
+// 获取 IP（优先使�?EdgeOne 提供�?eo-connecting-ip�?
 function getIp (req) {
   return req.headers['eo-connecting-ip'] ||
          req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
@@ -268,10 +268,10 @@ function getIp (req) {
 function protect (ip) {
   requestTimes[ip] = (requestTimes[ip] || 0) + 1
   if (requestTimes[ip] > MAX_REQUEST_TIMES) {
-    logger.warn(`${ip} 当前请求次数为 ${requestTimes[ip]}，已超过最大请求次数`)
+    logger.warn(`${ip} 当前请求次数�?${requestTimes[ip]}，已超过最大请求次数`)
     throw new Error('Too Many Requests')
   }
-  logger.log(`${ip} 当前请求次数为 ${requestTimes[ip]}`)
+  logger.log(`${ip} 当前请求次数�?${requestTimes[ip]}`)
 }
 
 // 定期清理请求计数
@@ -279,7 +279,7 @@ setInterval(() => {
   Object.keys(requestTimes).forEach(key => delete requestTimes[key])
 }, 10 * 60 * 1000)
 
-// ==================== 评论过滤函数（原本在 KV 内，移除 KV 后迁移到 Blob 数据库层） ====================
+// ==================== 评论过滤函数（原本在 KV 内，移除 KV 后迁移到 Blob 数据库层�?====================
 
 function filterComments (comments, query) {
   if (!Object.keys(query).length) return comments
@@ -440,7 +440,7 @@ function isAdmin (accessToken) {
 async function setPassword (event, db, accessToken) {
   const isAdminUser = isAdmin(accessToken)
   if (config.ADMIN_PASS && !isAdminUser) {
-    return { code: RES_CODE.PASS_EXIST, message: '请先登录再修改密码' }
+    return { code: RES_CODE.PASS_EXIST, message: '请先登录再修改密�? }
   }
   const ADMIN_PASS = md5(event.password)
   await writeConfig(db, { ADMIN_PASS })
@@ -452,7 +452,7 @@ async function login (password) {
     return { code: RES_CODE.CONFIG_NOT_EXIST, message: '数据库无配置' }
   }
   if (!config.ADMIN_PASS) {
-    return { code: RES_CODE.PASS_NOT_EXIST, message: '未配置管理密码' }
+    return { code: RES_CODE.PASS_NOT_EXIST, message: '未配置管理密�? }
   }
   if (config.ADMIN_PASS !== md5(password)) {
     return { code: RES_CODE.PASS_NOT_MATCH, message: '密码错误' }
@@ -474,7 +474,7 @@ async function commentGet (event, db, accessToken) {
 
     const urlQuery = getUrlQuery(event.url)
 
-    // 获取所有评论
+    // 获取所有评�?
     const allComments = await db.getComments()
 
     // 过滤主楼评论
@@ -501,7 +501,7 @@ async function commentGet (event, db, accessToken) {
       mainComments.sort((a, b) => b.created - a.created)
     }
 
-    // 处理置顶和分页
+    // 处理置顶和分�?
     let top = []
     if (!config.TOP_DISABLED && !event.before) {
       top = mainComments.filter(c => c.top === true)
@@ -538,7 +538,7 @@ async function commentGet (event, db, accessToken) {
   return res
 }
 
-// ==================== 管理员评论操作 ====================
+// ==================== 管理员评论操�?====================
 
 async function commentGetForAdmin (event, db, accessToken) {
   const res = {}
@@ -616,7 +616,7 @@ async function commentDeleteForAdmin (event, db, accessToken) {
   return res
 }
 
-// 用户删除自己的评论
+// 用户删除自己的评�?
 async function commentDeleteForUser (event, db, accessToken) {
   const res = {}
   try {
@@ -644,7 +644,7 @@ async function commentImportForAdmin (event, db, accessToken) {
   if (isAdminUser) {
     try {
       validate(event, ['source', 'file'])
-      log(`开始导入 ${event.source}`)
+      log(`开始导�?${event.source}`)
       let comments
       switch (event.source) {
         case 'valine': {
@@ -673,7 +673,7 @@ async function commentImportForAdmin (event, db, accessToken) {
           break
         }
         default:
-          throw new Error(`不支持 ${event.source} 的导入，请更新 Twikoo 云函数至最新版本`)
+          throw new Error(`不支�?${event.source} 的导入，请更�?Twikoo 云函数至最新版本`)
       }
       await db.bulkAddComments(comments)
       log('导入成功')
@@ -717,7 +717,7 @@ async function readFile (file, type, log) {
     }
     return content
   } catch (e) {
-    log(`评论文件读取失败：${e.message}`)
+    log(`评论文件读取失败�?{e.message}`)
   }
 }
 
@@ -771,10 +771,10 @@ async function commentSubmit (event, req, db, accessToken) {
 
   const ip = getIp(req)
 
-  // 限流检查
+  // 限流检�?
   await limitFilter(db, ip)
 
-  // 验证码检查
+  // 验证码检�?
   await checkCaptcha(event, ip)
 
   // 解析评论数据
@@ -800,7 +800,7 @@ async function parseCommentData (event, req, accessToken, ip) {
   const isBloggerMail = equalsMail(config.BLOGGER_EMAIL, event.mail)
 
   if (isBloggerMail && !isAdminUser) {
-    throw new Error('请先登录管理面板，再使用博主身份发送评论')
+    throw new Error('请先登录管理面板，再使用博主身份发送评�?)
   }
 
   const hashMethod = config.GRAVATAR_CDN === 'cravatar.cn' ? md5 : sha256
@@ -825,14 +825,14 @@ async function parseCommentData (event, req, accessToken, ip) {
     updated: timestamp
   }
 
-  // 处理 QQ 邮箱和头像
+  // 处理 QQ 邮箱和头�?
   if (isQQ(event.mail)) {
     commentDo.mail = addQQMailSuffix(event.mail)
     commentDo.mailMd5 = md5(normalizeMail(commentDo.mail))
     try {
       commentDo.avatar = await getQQAvatar(event.mail)
     } catch (e) {
-      logger.warn('获取 QQ 头像失败：', e.message)
+      logger.warn('获取 QQ 头像失败�?, e.message)
     }
   }
 
@@ -843,7 +843,7 @@ async function postSubmit (comment, db) {
   try {
     logger.log('POST_SUBMIT')
 
-    // 获取父评论
+    // 获取父评�?
     const getParentComment = async (c) => {
       if (c.pid) {
         return db.getComment(c.pid)
@@ -851,7 +851,7 @@ async function postSubmit (comment, db) {
       return null
     }
 
-    // 垃圾检测
+    // 垃圾检�?
     const isSpam = await postCheckSpam(comment, config)
     if (isSpam && !comment.isSpam) {
       await db.updateComment(comment._id, { isSpam: true, updated: Date.now() })
@@ -870,15 +870,15 @@ async function postSubmit (comment, db) {
         await resend.emails.send({
           from: 'Astesias Blog <onboarding@resend.dev>',
           to: '2264168148@qq.com',
-          subject: `[新评论] ${comment.nick || '匿名'} 在 ${articlePath}`,
+          subject: `[新评论] ${comment.nick || '匿名'} �?${articlePath}`,
           html: `<p><strong>${comment.nick || '匿名'}</strong> 评论了文章：</p>
-<p>📄 路由：<code>${articlePath}</code></p>
-<p>💬 内容：${commentText}${(comment.comment || '').length > 200 ? '...' : ''}</p>
-<p><a href="https://asterias.top${articlePath}">查看详情 →</a></p>`,
+<p>📄 路由�?code>${articlePath}</code></p>
+<p>💬 内容�?{commentText}${(comment.comment || '').length > 200 ? '...' : ''}</p>
+<p><a href="https://asterias.top${articlePath}">查看详情 �?/a></p>`,
         })
-        logger.log('邮件通知已发送')
+        logger.log('邮件通知已发�?)
       } catch (e) {
-        logger.warn('邮件通知发送失败', e.message)
+        logger.warn('邮件通知发送失�?, e.message)
       }
     }
   } catch (e) {
@@ -907,7 +907,7 @@ async function limitFilter (db, ip) {
     const comments = await db.getComments()
     const recentComments = comments.filter(c => c.created > Date.now() - 600000)
     if (recentComments.length > limitPerMinuteAll) {
-      throw new Error('评论太火爆啦 >_< 请稍后再试')
+      throw new Error('评论太火爆啦 >_< 请稍后再�?)
     }
   }
 }
@@ -931,7 +931,7 @@ async function checkCaptcha (event, ip) {
     })
   } else if (provider === 'Cap' && config.CAP_API_ENDPOINT && config.CAP_SECRET_KEY) {
     if (!event.capToken) {
-      throw new Error('验证码 token 缺失，请刷新页面重试')
+      throw new Error('验证�?token 缺失，请刷新页面重试')
     }
     await checkCapCaptcha({
       capToken: event.capToken,
@@ -939,9 +939,9 @@ async function checkCaptcha (event, ip) {
       capApiEndpoint: config.CAP_API_ENDPOINT
     })
   } else if (provider === 'Cap') {
-    throw new Error('Cap 验证码配置不完整，请联系管理员')
+    throw new Error('Cap 验证码配置不完整，请联系管理�?)
   } else if (provider) {
-    throw new Error(`不支持的验证码类型: ${provider}`)
+    throw new Error(`不支持的验证码类�? ${provider}`)
   }
 }
 
@@ -957,7 +957,7 @@ async function setConfig (event, db, accessToken) {
   }
 }
 
-// ==================== 计数器 ====================
+// ==================== 计数�?====================
 
 async function counterGet (event, db) {
   const res = {}
@@ -1035,7 +1035,7 @@ async function getRecentComments (event, db) {
   return res
 }
 
-// 资源代理：GET /api/resource?key=xxx → Blob 文件
+// 资源代理：GET /api/resource?key=xxx �?Blob 文件
 const MIME_MAP = {
   '.js': 'application/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -1053,7 +1053,7 @@ const MIME_MAP = {
 async function handleResource(url, res) {
   let key = url.searchParams.get('key');
   if (key === null) { res.status(400).json({ error: 'Missing key' }); return; }
-  key = key.replace(/^\/+/, '');  // ← 加这行
+  key = key.replace(/^\/+/, '');  // �?加这�?
 
   try {
     const store = getStore('resources');
@@ -1107,7 +1107,7 @@ async function handleAdmin(request, url, res) {
   const action = url.searchParams.get('action');
   const store = getStore('resources');
 
-  // 登录验证（无需 key）
+  // 登录验证（无需 key�?
   if (action === 'login') {
     try {
       const { pwd } = await request.json();
@@ -1115,7 +1115,7 @@ async function handleAdmin(request, url, res) {
       const hash = await sha256(pwd);
       const stored = await store.get('config:admin', { type: 'json' });
       if (!stored || !stored.pwdHash) {
-        // 首次使用：存储初始密码（用当前传入的哈希）
+        // 首次使用：存储初始密码（用当前传入的哈希�?
         await store.setJSON('config:admin', { pwdHash: hash });
         res.json({ ok: true, autoCreated: true });
         return;
@@ -1202,21 +1202,22 @@ async function _LPU(req, o) {
 }
 async function _LSV(u) { const id = u.pathname.replace('/api/lsky/image/', '').split('.')[0]; if (!id) return new Response('NF', { status: 404, headers: _LC() }); const i = await _LGI(id); if (!i) return new Response('NF', { status: 404, headers: _LC() }); return new Response(i.data, { status: 200, headers: { 'Content-Type': i.type, 'Cache-Control': 'public, max-age=31536000, immutable', ..._LC() } }) }
 async function _LL() { const l = await _LG(); return new Response(JSON.stringify({ success: true, total: l.length, images: l }), { status: 200, headers: { 'Content-Type': 'application/json', ..._LC() } }) }
-async function _LDL(u) { const id = u.pathname.replace('/api/lsky/delete/', '').split('.')[0]; if (!id) return new Response(JSON.stringify({ error: 'no id' }), { status: 400, headers: _LC() }); await _LD(id); return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json', ..._LC() } }) }
+async function _LDL(u) { const id = u.searchParams.get('id'); if (!id) return new Response(JSON.stringify({ error: 'no id' }), { status: 400, headers: _LC() }); await _LD(id); return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json', ..._LC() } }) }
 function _LF(u) {
-  return new Response('<!DOCTYPE html>\n<html lang="zh-CN">\n<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Lsky Lite</title>\n<style>\n*{margin:0;padding:0;box-sizing:border-box}\nbody{font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,sans-serif;background:#0f0f1a;color:#e0e0e0;min-height:100vh}\n.container{max-width:960px;margin:0 auto;padding:20px}\nh1{text-align:center;font-size:24px;margin:20px 0;color:#7c5cfc}\n.upload-zone{border:2px dashed #3a3a5c;border-radius:12px;padding:40px;text-align:center;cursor:pointer;transition:all .3s;background:#1a1a2e;margin-bottom:24px}\n.upload-zone:hover,.upload-zone.dragover{border-color:#7c5cfc;background:#222240}\n.upload-zone p{font-size:14px;color:#888;margin-top:8px}\n.upload-zone .icon{font-size:40px;margin-bottom:8px}\ninput[type="file"]{display:none}\n.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}\n.card{background:#1a1a2e;border-radius:8px;overflow:hidden;position:relative;border:1px solid #2a2a4a;transition:transform .2s}\n.card:hover{transform:translateY(-2px);border-color:#7c5cfc}\n.card img{width:100%;height:160px;object-fit:cover;display:block;background:#0a0a15}\n.card .info{padding:8px 10px;font-size:12px}\n.card .info .name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#aaa;margin-bottom:4px}\n.card .info .size{color:#666}\n.card .actions{position:absolute;top:6px;right:6px;display:flex;gap:4px;opacity:0;transition:opacity .2s}\n.card:hover .actions{opacity:1}\n.card .actions button{background:rgba(0,0,0,.7);border:none;color:#fff;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:14px}\n.card .actions .copy-btn:hover{background:#7c5cfc}\n.card .actions .del-btn:hover{background:#e74c3c}\n.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#7c5cfc;color:#fff;padding:10px 24px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none}\n.toast.show{opacity:1}\n.empty{text-align:center;padding:60px 20px;color:#555}\n.empty .icon{font-size:48px;margin-bottom:12px}\n.counter{text-align:center;font-size:13px;color:#666;margin-bottom:16px}\n.progress{display:none;text-align:center;padding:12px;color:#7c5cfc;font-size:14px}\n@media(max-width:600px){.gallery{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}}\n</style></head>\n<body><div class="container">\n<h1>\uD83D\uDDBC Lsky Lite</h1>\n<div class="upload-zone" id="dropZone"><div class="icon">\uD83D\uDCC1</div><p>\u62D6\u62FD\u56FE\u7247\u5230\u6B64\u5904 \u6216 \u70B9\u51FB\u9009\u62E9</p><input type="file" id="fileInput" accept="image/*" multiple></div>\n<div class="progress" id="progress"></div><div class="counter" id="counter"></div>\n<div class="gallery" id="gallery"></div>\n<div class="empty" id="empty"><div class="icon">\uD83D\uDCF8</div><p>\u6682\u65E0\u56FE\u7247</p></div></div>\n<div class="toast" id="toast"></div>\n<script>\nconst BASE=window.location.pathname.replace(/\\/+$/,\'\')\nlet allImages=[]\nfunction t(m){const e=$(\'#toast\');e.textContent=m;e.classList.add(\'show\');setTimeout(()=>e.classList.remove(\'show\'),2500)}\nfunction sz(b){if(b<1024)return b+\'B\';if(b<1048576)return(b/1024).toFixed(1)+\'KB\';return(b/1048576).toFixed(1)+\'MB\'}\nasync function load(){try{const r=await fetch(BASE+\'/list\');const d=await r.json();allImages=d.images||[];render()}catch{}}\nfunction render(){const g=$(\'#gallery\'),e=$(\'#empty\'),c=$(\'#counter\')\nif(!allImages.length){g.innerHTML=\'\';e.style.display=\'block\';c.textContent=\'\';return}\ne.style.display=\'none\';c.textContent=\'\u5171 \'+allImages.length+\' \u5F20\u56FE\u7247\'\ng.innerHTML=allImages.map(i=>\'<div class=card><img src="\'+BASE+\'/image/\'+i.id+i.ext+\'" alt="\'+i.name+\'" loading=lazy><div class=info><div class=name title="\'+i.name+\'">\'+i.name+\'</div><div class=size>\'+sz(i.size)+\'</div></div><div class=actions><button class=copy-btn onclick="copyUrl(\\\'\'+i.id+i.ext+\'\\\')" title=\u590D\u5236URL>\uD83D\uDD17</button><button class=del-btn onclick="delImg(\\\'\'+i.id+\'\\\')" title=\u5220\u9664>\uD83D\uDDD1</button></div></div>\').join(\'\')}\nfunction copyUrl(p){const u=window.location.origin+BASE+\'/image/\'+p;navigator.clipboard.writeText(u).then(()=>t(\'\u5DF2\u590D\u5236: \'+u))}\nasync function delImg(id){if(!confirm(\'\u786E\u5B9A\u5220\u9664\uFF1F\'))return;try{const r=await fetch(BASE+\'/delete/\'+id,{method:\'DELETE\'});const d=await r.json();if(d.success){t(\'\u5DF2\u5220\u9664\');load()}else t(\'\u5220\u9664\u5931\u8D25\')}catch{t(\'\u5220\u9664\u5931\u8D25\')}}\nasync function up(files){const p=$(\'#progress\')\nfor(const f of files){if(!f.type.startsWith(\'image/\'))continue\np.style.display=\'block\';p.textContent=\'\u4E0A\u4F20: \'+f.name;const fd=new FormData();fd.append(\'image\',f)\ntry{const r=await fetch(BASE+\'/upload\',{method:\'POST\',body:fd});const d=await r.json();if(d.success)t(\'\u4E0A\u4F20\u6210\u529F: \'+d.name);else t(\'\u5931\u8D25: \'+(d.error||\'\u672A\u77E5\'))}catch{t(\'\u4E0A\u4F20\u5931\u8D25\')}}\np.style.display=\'none\';load()}\nconst dz=$(\'#dropZone\'),fi=$(\'#fileInput\')\ndz.addEventListener(\'click\',()=>fi.click())\ndz.addEventListener(\'dragover\',e=>{e.preventDefault();dz.classList.add(\'dragover\')})\ndz.addEventListener(\'dragleave\',()=>dz.classList.remove(\'dragover\'))\ndz.addEventListener(\'drop\',e=>{e.preventDefault();dz.classList.remove(\'dragover\');up(e.dataTransfer.files)})\nfi.addEventListener(\'change\',()=>{up(fi.files);fi.value=\'\'})\nload()\n</script></body></html>', { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8', ..._LC() } })
+  const o = u.origin
+  return new Response('<!DOCTYPE html>\n<html lang="zh-CN">\n<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Lsky Lite</title>\n<style>\n*{margin:0;padding:0;box-sizing:border-box}\nbody{font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,sans-serif;background:#0f0f1a;color:#e0e0e0;min-height:100vh}\n.container{max-width:960px;margin:0 auto;padding:20px}\nh1{text-align:center;font-size:24px;margin:20px 0;color:#7c5cfc}\n.upload-zone{border:2px dashed #3a3a5c;border-radius:12px;padding:40px;text-align:center;cursor:pointer;transition:all .3s;background:#1a1a2e;margin-bottom:24px}\n.upload-zone:hover,.upload-zone.dragover{border-color:#7c5cfc;background:#222240}\n.upload-zone p{font-size:14px;color:#888;margin-top:8px}\n.upload-zone .icon{font-size:40px;margin-bottom:8px}\ninput[type="file"]{display:none}\n.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}\n.card{background:#1a1a2e;border-radius:8px;overflow:hidden;position:relative;border:1px solid #2a2a4a;transition:transform .2s}\n.card:hover{transform:translateY(-2px);border-color:#7c5cfc}\n.card img{width:100%;height:160px;object-fit:cover;display:block;background:#0a0a15}\n.card .info{padding:8px 10px;font-size:12px}\n.card .info .name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#aaa;margin-bottom:4px}\n.card .info .size{color:#666}\n.card .actions{position:absolute;top:6px;right:6px;display:flex;gap:4px;opacity:0;transition:opacity .2s}\n.card:hover .actions{opacity:1}\n.card .actions button{background:rgba(0,0,0,.7);border:none;color:#fff;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:14px}\n.card .actions .copy-btn:hover{background:#7c5cfc}\n.card .actions .del-btn:hover{background:#e74c3c}\n.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#7c5cfc;color:#fff;padding:10px 24px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none}\n.toast.show{opacity:1}\n.empty{text-align:center;padding:60px 20px;color:#555}\n.empty .icon{font-size:48px;margin-bottom:12px}\n.counter{text-align:center;font-size:13px;color:#666;margin-bottom:16px}\n.progress{display:none;text-align:center;padding:12px;color:#7c5cfc;font-size:14px}\n@media(max-width:600px){.gallery{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}}\n</style></head>\n<body><div class="container">\n<h1>\uD83D\uDDBC Lsky Lite</h1>\n<div class="upload-zone" id="dropZone"><div class="icon">\uD83D\uDCC1</div><p>\u62D6\u62FD\u56FE\u7247\u5230\u6B64\u5904 \u6216 \u70B9\u51FB\u9009\u62E9</p><input type="file" id="fileInput" accept="image/*" multiple></div>\n<div class="progress" id="progress"></div><div class="counter" id="counter"></div>\n<div class="gallery" id="gallery"></div>\n<div class="empty" id="empty"><div class="icon">\uD83D\uDCF8</div><p>\u6682\u65E0\u56FE\u7247</p></div></div>\n<div class="toast" id="toast"></div>\n<script>\nconst B=\''+o+'\'\nlet A=[]\nfunction T(m){const e=$(\'#toast\');e.textContent=m;e.classList.add(\'show\');setTimeout(()=>e.classList.remove(\'show\'),2500)}\nfunction S(b){if(b<1024)return b+\'B\';if(b<1048576)return(b/1024).toFixed(1)+\'KB\';return(b/1048576).toFixed(1)+\'MB\'}\nasync function L(){try{const r=await fetch(B+\'/?__lsky=list\');const d=await r.json();A=d.images||[];R()}catch{}}\nfunction R(){const g=$(\'#gallery\'),e=$(\'#empty\'),c=$(\'#counter\')\nif(!A.length){g.innerHTML=\'\';e.style.display=\'block\';c.textContent=\'\';return}\ne.style.display=\'none\';c.textContent=\'\u5171 \'+A.length+\' \u5F20\u56FE\u7247\'\ng.innerHTML=A.map(i=>\'<div class=card><img src="\'+B+\'/?__lsky=image&id=\'+i.id+\'" alt="\'+i.name+\'" loading=lazy><div class=info><div class=name title="\'+i.name+\'">\'+i.name+\'</div><div class=size>\'+S(i.size)+\'</div></div><div class=actions><button class=copy-btn onclick="copyUrl(\\\'\'+i.id+\'\\\')" title=\u590D\u5236URL>\uD83D\uDD17</button><button class=del-btn onclick="delImg(\\\'\'+i.id+\'\\\')" title=\u5220\u9664>\uD83D\uDDD1</button></div></div>\').join(\'\')}\nfunction C(p){navigator.clipboard.writeText(B+\'/?__lsky=image&id=\'+p).then(()=>T(\'\u5DF2\u590D\u5236\'))}\nasync function D(id){if(!confirm(\'\u786E\u5B9A\u5220\u9664\uFF1F\'))return;try{const r=await fetch(B+\'/?__lsky=delete&id=\'+id,{method:\'DELETE\'});const d=await r.json();if(d.success){T(\'\u5DF2\u5220\u9664\');L()}else T(\'\u5220\u9664\u5931\u8D25\')}catch{T(\'\u5220\u9664\u5931\u8D25\')}}\nasync function U(files){const p=$(\'#progress\')\nfor(const f of files){if(!f.type.startsWith(\'image/\'))continue\np.style.display=\'block\';p.textContent=\'\u4E0A\u4F20: \'+f.name;const fd=new FormData();fd.append(\'image\',f)\ntry{const r=await fetch(B+\'/?__lsky=upload\',{method:\'POST\',body:fd});const d=await r.json();if(d.success)T(\'\u4E0A\u4F20\u6210\u529F\');else T(\'\u5931\u8D25\')}catch{T(\'\u4E0A\u4F20\u5931\u8D25\')}}\np.style.display=\'none\';L()}\nconst Z=$(\'#dropZone\'),I=$(\'#fileInput\')\nZ.addEventListener(\'click\',()=>I.click())\nZ.addEventListener(\'dragover\',e=>{e.preventDefault();Z.classList.add(\'dragover\')})\nZ.addEventListener(\'dragleave\',()=>Z.classList.remove(\'dragover\'))\nZ.addEventListener(\'drop\',e=>{e.preventDefault();Z.classList.remove(\'dragover\');U(e.dataTransfer.files)})\nI.addEventListener(\'change\',()=>{U(I.files);I.value=\'\'})\nL()\n</script></body></html>', { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8', ..._LC() } })
 }
 async function _LH(ctx) {
   const { request } = ctx; const u = new URL(request.url); const p = u.searchParams; const o = u.origin
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: _LC() })
   try {
-    const a = p.get('__lsky')
-    if (!a) return null
-    if (a === 'upload') { if (request.method !== 'POST') return new Response('MMA', { status: 405, headers: _LC() }); return _LU(request) }
-    if (a === 'image') { if (request.method !== 'GET') return new Response('MMA', { status: 405, headers: _LC() }); const id = p.get('id'); if (!id) return new Response('NF', { status: 404, headers: _LC() }); const i = await _LGI(id); if (!i) return new Response('NF', { status: 404, headers: _LC() }); return new Response(i.data, { status: 200, headers: { 'Content-Type': i.type, 'Cache-Control': 'public, max-age=31536000, immutable', ..._LC() } }) }
-    if (a === 'list') { if (request.method !== 'GET') return new Response('MMA', { status: 405, headers: _LC() }); return _LL() }
-    if (a === 'delete') { if (request.method !== 'DELETE') return new Response('MMA', { status: 405, headers: _LC() }); const id = p.get('id'); if (!id) return new Response(JSON.stringify({ error: 'no id' }), { status: 400, headers: _LC() }); await _LD(id); return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json', ..._LC() } }) }
-    return _LF(u)
+    const action = p.get('__lsky')
+    if (!action) return null // not a lsky request
+    if (action === 'upload') { if (request.method !== 'POST') return new Response('MMA', { status: 405, headers: _LC() }); return _LU(request) }
+    if (action === 'image') { if (request.method !== 'GET') return new Response('MMA', { status: 405, headers: _LC() }); const id = p.get('id'); if (!id) return new Response('NF', { status: 404, headers: _LC() }); const i = await _LGI(id); if (!i) return new Response('NF', { status: 404, headers: _LC() }); return new Response(i.data, { status: 200, headers: { 'Content-Type': i.type, 'Cache-Control': 'public, max-age=31536000, immutable', ..._LC() } }) }
+    if (action === 'list') { if (request.method !== 'GET') return new Response('MMA', { status: 405, headers: _LC() }); return _LL() }
+    if (action === 'delete') { if (request.method !== 'DELETE') return new Response('MMA', { status: 405, headers: _LC() }); return _LDL(u) }
+    return _LF(u) // default: show frontend
   } catch (e) { return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { 'Content-Type': 'application/json', ..._LC() } }) }
 }
 
@@ -1227,14 +1228,12 @@ async function _handleLskyUploadForTwikoo(event) {
   const raw = atob(photo.split(',')[1] || photo)
   const buf = new Uint8Array(raw.length); for (let i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i)
   const ft = fileName.match(/\.(png|jpg|jpeg|gif|webp|avif|svg)$/i)?.[1] || 'png'
-  const mime = ({ png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', avif: 'image/avif', svg: 'image/svg+xml' })[ft.toLowerCase()] || 'image/png'
+  const mime = ({ png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', avif: 'image/avif', svg: 'image/svg+xml' })[ft] || 'image/png'
   if (buf.byteLength > _LSZ) throw new Error('file too large')
   if (!_LAT.includes(mime)) throw new Error('unsupported type')
   const id = uuidv4().replace(/-/g, ''); const ex = _LE(mime)
   await _LA(id, buf, { id, name: fileName, ext: ex, type: mime, size: buf.byteLength, created: Date.now(), updated: Date.now() })
   return { data: { links: { url: `https://comment.asterias.top/?__lsky=image&id=${id}` } } }
-}
-
 // EdgeOne Pages Node Function 入口
 export async function onRequest (context) {
   const { request } = context
@@ -1257,7 +1256,7 @@ export async function onRequest (context) {
         headers[key.toLowerCase()] = value
       })
 
-      // Admin API 需要原始 body（不预先消费）
+      // Admin API 需要原�?body（不预先消费�?
       if (method === 'POST' && url.searchParams.get('action')) {
         const res = {
           status: (code) => { /* handled in handleAdmin */ return res },
@@ -1353,14 +1352,14 @@ export async function onRequest (context) {
       }
 
       if (method === 'GET') {
-        // 资源代理：任意 GET 带 ?key= 参数 → 从 Blob 读取文件
+        // 资源代理：任�?GET �??key= 参数 �?�?Blob 读取文件
         if (url.searchParams.get('key')) {
           await handleResource(url, res);
           return;
         }
         res.json({
           code: RES_CODE.SUCCESS,
-          message: 'Twikoo 云函数运行正常，请参考 https://twikoo.js.org/frontend.html 完成前端的配置',
+          message: 'Twikoo 云函数运行正常，请参�?https://twikoo.js.org/frontend.html 完成前端的配�?,
           version: VERSION
         })
         return
@@ -1403,9 +1402,9 @@ async function handlePost (req, res) {
   const event = req.body || {}
   const ip = getIp(req)
 
-  logger.log('请求 IP：', ip)
-  logger.log('请求函数：', event.event)
-  logger.log('请求参数：', event)
+  logger.log('请求 IP�?, ip)
+  logger.log('请求函数�?, event.event)
+  logger.log('请求参数�?, event)
 
   let result = {}
 
@@ -1413,13 +1412,13 @@ async function handlePost (req, res) {
     // 防护
     protect(ip)
 
-    // 生成或使用 accessToken
+    // 生成或使�?accessToken
     accessToken = event.accessToken || uuidv4().replace(/-/g, '')
 
     // 读取配置
     await readConfig()
 
-    // 创建数据库操作对象
+    // 创建数据库操作对�?
     const db = createBlobDatabase()
 
     switch (event.event) {
@@ -1496,10 +1495,10 @@ async function handlePost (req, res) {
       default:
         if (event.event) {
           result.code = RES_CODE.EVENT_NOT_EXIST
-          result.message = '请更新 Twikoo 云函数至最新版本'
+          result.message = '请更�?Twikoo 云函数至最新版�?
         } else {
           result.code = RES_CODE.NO_PARAM
-          result.message = 'Twikoo 云函数运行正常，请参考 https://twikoo.js.org/frontend.html 完成前端的配置'
+          result.message = 'Twikoo 云函数运行正常，请参�?https://twikoo.js.org/frontend.html 完成前端的配�?
           result.version = VERSION
         }
     }
@@ -1508,11 +1507,11 @@ async function handlePost (req, res) {
       result.accessToken = accessToken
     }
   } catch (e) {
-    logger.error('Twikoo 遇到错误：', e.message, e.stack)
+    logger.error('Twikoo 遇到错误�?, e.message, e.stack)
     result.code = RES_CODE.FAIL
     result.message = e.message
   }
 
-  logger.log('请求返回：', result)
+  logger.log('请求返回�?, result)
   res.json(result)
 }
