@@ -1211,7 +1211,7 @@ async function _LH(ctx) {
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: _LC() })
   try {
     const a = p.get('__lsky')
-    if (!a) return null
+    if (a === null) return null
     if (a === 'upload') { if (request.method !== 'POST') return new Response('MMA', { status: 405, headers: _LC() }); return _LU(request) }
     if (a === 'image') { if (request.method !== 'GET') return new Response('MMA', { status: 405, headers: _LC() }); const id = p.get('id'); if (!id) return new Response('NF', { status: 404, headers: _LC() }); const i = await _LGI(id); if (!i) return new Response('NF', { status: 404, headers: _LC() }); return new Response(i.data, { status: 200, headers: { 'Content-Type': i.type, 'Cache-Control': 'public, max-age=31536000, immutable', ..._LC() } }) }
     if (a === 'list') { if (request.method !== 'GET') return new Response('MMA', { status: 405, headers: _LC() }); return _LL() }
