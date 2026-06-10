@@ -1330,7 +1330,7 @@ load()
   return new Response(html, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8', ...lskyCors() } })
 }
 
-async function handleLskyRequest (context) {
+export async function handleLskyRequest (context) {
   const { request } = context
   const url = new URL(request.url)
   const path = url.pathname.replace(/\/+$/, '')
@@ -1368,7 +1368,7 @@ async function handleLskyRequest (context) {
 export async function onRequest (context) {
   const { request } = context
 
-  // ==================== Lsky Lite 图床路由 ====================
+  // ==================== Lsky Lite 路由 ====================
   try {
     const _url = new URL(request.url)
     if (_url.pathname.startsWith('/api/lsky') || _url.pathname.startsWith('/api/v1/upload')) {
@@ -1376,7 +1376,6 @@ export async function onRequest (context) {
     }
   } catch (e) { /* fall through */ }
 
-  // 将 EdgeOne 请求转换为 Express 可处理的格式
   // eslint-disable-next-line no-async-promise-executor
   return new Promise(async (resolve) => {
     try {
