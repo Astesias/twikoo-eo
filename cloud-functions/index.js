@@ -1170,6 +1170,13 @@ async function handleAdmin(request, url, res) {
 export async function onRequest (context) {
   const { request } = context
 
+  // ==================== Lsky Lite 图床路由 ====================
+  const _url = new URL(request.url)
+  if (_url.pathname.startsWith('/api/lsky')) {
+    const { handleLskyRequest } = await import('./api/lsky.js')
+    return handleLskyRequest(context)
+  }
+
   // 将 EdgeOne 请求转换为 Express 可处理的格式
   // eslint-disable-next-line no-async-promise-executor
   return new Promise(async (resolve) => {
