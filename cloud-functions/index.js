@@ -1166,9 +1166,69 @@ async function handleAdmin(request, url, res) {
   res.json({ error: 'Unknown action' });
 }
 
+// ==================== Lsky Lite 图床（内联）====================
+
+const _LSZ = 10 * 1024 * 1024
+const _LAT = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif', 'image/svg+xml']
+const _LS = getStore({ name: 'lsky', consistency: 'eventual' })
+function _LE(m) { return ({ 'image/jpeg': '.jpg', 'image/png': '.png', 'image/gif': '.gif', 'image/webp': '.webp', 'image/avif': '.avif', 'image/svg+xml': '.svg' })[m] || '.bin' }
+function _LC() { return { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization' } }
+async function _LG() { return await _LS.get('meta:all', { type: 'json' }) || [] }
+async function _LW(l) { await _LS.setJSON('meta:all', l) }
+async function _LA(id, buf, meta) { await _LS.setJSON('img:' + id, { data: Array.from(new Uint8Array(buf)), type: meta.type }); const l = await _LG(); l.unshift(meta); await _LW(l) }
+async function _LGI(id) { const i = await _LS.get('img:' + id, { type: 'json' }); return i ? { data: new Uint8Array(i.data), type: i.type } : null }
+async function _LD(id) { await _LS.delete('img:' + id); const l = await _LG(); const idx = l.findIndex(m => m.id === id); if (idx !== -1) { l.splice(idx, 1); await _LW(l) } }
+async function _LU(req) {
+  const ct = req.headers.get('content-type') || ''; let buf, fn, ft
+  if (ct.includes('multipart/form-data')) { const f = await req.formData(); const fi = f.get('image') || f.get('file'); if (!fi) return new Response(JSON.stringify({ error: 'no file' }), { status: 400, headers: _LC() }); buf = await fi.arrayBuffer(); fn = fi.name; ft = fi.type }
+  else if (ct.includes('application/json')) { const b = await req.json(); if (!b.image) return new Response(JSON.stringify({ error: 'no file' }), { status: 400, headers: _LC() }); const r = atob(b.image.split(',')[1] || b.image); buf = new Uint8Array(r.length); for (let i = 0; i < r.length; i++) buf[i] = r.charCodeAt(i); fn = b.name || 'img'; ft = b.type || 'image/png' }
+  else return new Response(JSON.stringify({ error: 'bad ct' }), { status: 400, headers: _LC() })
+  if (buf.byteLength > _LSZ) return new Response(JSON.stringify({ error: 'too large' }), { status: 413, headers: _LC() })
+  if (!_LAT.includes(ft)) return new Response(JSON.stringify({ error: 'bad type' }), { status: 415, headers: _LC() })
+  const id = uuidv4().replace(/-/g, ''); const ex = _LE(ft)
+  await _LA(id, buf, { id, name: fn, ext: ex, type: ft, size: buf.byteLength, created: Date.now(), updated: Date.now() })
+  return new Response(JSON.stringify({ success: true, id, url: '/api/lsky/image/' + id + ex, name: fn, size: buf.byteLength }), { status: 200, headers: { 'Content-Type': 'application/json', ..._LC() } })
+}
+async function _LPU(req, o) {
+  const ct = req.headers.get('content-type') || ''
+  if (!ct.includes('multipart/form-data')) return new Response(JSON.stringify({ status: false, message: 'bad' }), { status: 400, headers: { 'Content-Type': 'application/json', ..._LC() } })
+  const f = await req.formData(); const fi = f.get('file'); if (!fi) return new Response(JSON.stringify({ status: false, message: 'no file' }), { status: 400, headers: { 'Content-Type': 'application/json', ..._LC() } })
+  const buf = await fi.arrayBuffer(); const ft = fi.type
+  if (buf.byteLength > _LSZ) return new Response(JSON.stringify({ status: false, message: 'too large' }), { status: 413, headers: { 'Content-Type': 'application/json', ..._LC() } })
+  if (!_LAT.includes(ft)) return new Response(JSON.stringify({ status: false, message: 'bad type' }), { status: 415, headers: { 'Content-Type': 'application/json', ..._LC() } })
+  const id = uuidv4().replace(/-/g, ''); const ex = _LE(ft)
+  await _LA(id, buf, { id, name: fi.name, ext: ex, type: ft, size: buf.byteLength, created: Date.now(), updated: Date.now() })
+  return new Response(JSON.stringify({ status: true, data: { links: { url: o + '/api/lsky/image/' + id + ex } } }), { status: 200, headers: { 'Content-Type': 'application/json', ..._LC() } })
+}
+async function _LSV(u) { const id = u.pathname.replace('/api/lsky/image/', '').split('.')[0]; if (!id) return new Response('NF', { status: 404, headers: _LC() }); const i = await _LGI(id); if (!i) return new Response('NF', { status: 404, headers: _LC() }); return new Response(i.data, { status: 200, headers: { 'Content-Type': i.type, 'Cache-Control': 'public, max-age=31536000, immutable', ..._LC() } }) }
+async function _LL() { const l = await _LG(); return new Response(JSON.stringify({ success: true, total: l.length, images: l }), { status: 200, headers: { 'Content-Type': 'application/json', ..._LC() } }) }
+async function _LDL(u) { const id = u.pathname.replace('/api/lsky/delete/', '').split('.')[0]; if (!id) return new Response(JSON.stringify({ error: 'no id' }), { status: 400, headers: _LC() }); await _LD(id); return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json', ..._LC() } }) }
+function _LF(u) {
+  return new Response('<!DOCTYPE html>\n<html lang="zh-CN">\n<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Lsky Lite</title>\n<style>\n*{margin:0;padding:0;box-sizing:border-box}\nbody{font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,sans-serif;background:#0f0f1a;color:#e0e0e0;min-height:100vh}\n.container{max-width:960px;margin:0 auto;padding:20px}\nh1{text-align:center;font-size:24px;margin:20px 0;color:#7c5cfc}\n.upload-zone{border:2px dashed #3a3a5c;border-radius:12px;padding:40px;text-align:center;cursor:pointer;transition:all .3s;background:#1a1a2e;margin-bottom:24px}\n.upload-zone:hover,.upload-zone.dragover{border-color:#7c5cfc;background:#222240}\n.upload-zone p{font-size:14px;color:#888;margin-top:8px}\n.upload-zone .icon{font-size:40px;margin-bottom:8px}\ninput[type="file"]{display:none}\n.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}\n.card{background:#1a1a2e;border-radius:8px;overflow:hidden;position:relative;border:1px solid #2a2a4a;transition:transform .2s}\n.card:hover{transform:translateY(-2px);border-color:#7c5cfc}\n.card img{width:100%;height:160px;object-fit:cover;display:block;background:#0a0a15}\n.card .info{padding:8px 10px;font-size:12px}\n.card .info .name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#aaa;margin-bottom:4px}\n.card .info .size{color:#666}\n.card .actions{position:absolute;top:6px;right:6px;display:flex;gap:4px;opacity:0;transition:opacity .2s}\n.card:hover .actions{opacity:1}\n.card .actions button{background:rgba(0,0,0,.7);border:none;color:#fff;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:14px}\n.card .actions .copy-btn:hover{background:#7c5cfc}\n.card .actions .del-btn:hover{background:#e74c3c}\n.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#7c5cfc;color:#fff;padding:10px 24px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none}\n.toast.show{opacity:1}\n.empty{text-align:center;padding:60px 20px;color:#555}\n.empty .icon{font-size:48px;margin-bottom:12px}\n.counter{text-align:center;font-size:13px;color:#666;margin-bottom:16px}\n.progress{display:none;text-align:center;padding:12px;color:#7c5cfc;font-size:14px}\n@media(max-width:600px){.gallery{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}}\n</style></head>\n<body><div class="container">\n<h1>\uD83D\uDDBC Lsky Lite</h1>\n<div class="upload-zone" id="dropZone"><div class="icon">\uD83D\uDCC1</div><p>\u62D6\u62FD\u56FE\u7247\u5230\u6B64\u5904 \u6216 \u70B9\u51FB\u9009\u62E9</p><input type="file" id="fileInput" accept="image/*" multiple></div>\n<div class="progress" id="progress"></div><div class="counter" id="counter"></div>\n<div class="gallery" id="gallery"></div>\n<div class="empty" id="empty"><div class="icon">\uD83D\uDCF8</div><p>\u6682\u65E0\u56FE\u7247</p></div></div>\n<div class="toast" id="toast"></div>\n<script>\nconst BASE=window.location.pathname.replace(/\\/+$/,\'\')\nlet allImages=[]\nfunction t(m){const e=$(\'#toast\');e.textContent=m;e.classList.add(\'show\');setTimeout(()=>e.classList.remove(\'show\'),2500)}\nfunction sz(b){if(b<1024)return b+\'B\';if(b<1048576)return(b/1024).toFixed(1)+\'KB\';return(b/1048576).toFixed(1)+\'MB\'}\nasync function load(){try{const r=await fetch(BASE+\'/list\');const d=await r.json();allImages=d.images||[];render()}catch{}}\nfunction render(){const g=$(\'#gallery\'),e=$(\'#empty\'),c=$(\'#counter\')\nif(!allImages.length){g.innerHTML=\'\';e.style.display=\'block\';c.textContent=\'\';return}\ne.style.display=\'none\';c.textContent=\'\u5171 \'+allImages.length+\' \u5F20\u56FE\u7247\'\ng.innerHTML=allImages.map(i=>\'<div class=card><img src="\'+BASE+\'/image/\'+i.id+i.ext+\'" alt="\'+i.name+\'" loading=lazy><div class=info><div class=name title="\'+i.name+\'">\'+i.name+\'</div><div class=size>\'+sz(i.size)+\'</div></div><div class=actions><button class=copy-btn onclick="copyUrl(\\\'\'+i.id+i.ext+\'\\\')" title=\u590D\u5236URL>\uD83D\uDD17</button><button class=del-btn onclick="delImg(\\\'\'+i.id+\'\\\')" title=\u5220\u9664>\uD83D\uDDD1</button></div></div>\').join(\'\')}\nfunction copyUrl(p){const u=window.location.origin+BASE+\'/image/\'+p;navigator.clipboard.writeText(u).then(()=>t(\'\u5DF2\u590D\u5236: \'+u))}\nasync function delImg(id){if(!confirm(\'\u786E\u5B9A\u5220\u9664\uFF1F\'))return;try{const r=await fetch(BASE+\'/delete/\'+id,{method:\'DELETE\'});const d=await r.json();if(d.success){t(\'\u5DF2\u5220\u9664\');load()}else t(\'\u5220\u9664\u5931\u8D25\')}catch{t(\'\u5220\u9664\u5931\u8D25\')}}\nasync function up(files){const p=$(\'#progress\')\nfor(const f of files){if(!f.type.startsWith(\'image/\'))continue\np.style.display=\'block\';p.textContent=\'\u4E0A\u4F20: \'+f.name;const fd=new FormData();fd.append(\'image\',f)\ntry{const r=await fetch(BASE+\'/upload\',{method:\'POST\',body:fd});const d=await r.json();if(d.success)t(\'\u4E0A\u4F20\u6210\u529F: \'+d.name);else t(\'\u5931\u8D25: \'+(d.error||\'\u672A\u77E5\'))}catch{t(\'\u4E0A\u4F20\u5931\u8D25\')}}\np.style.display=\'none\';load()}\nconst dz=$(\'#dropZone\'),fi=$(\'#fileInput\')\ndz.addEventListener(\'click\',()=>fi.click())\ndz.addEventListener(\'dragover\',e=>{e.preventDefault();dz.classList.add(\'dragover\')})\ndz.addEventListener(\'dragleave\',()=>dz.classList.remove(\'dragover\'))\ndz.addEventListener(\'drop\',e=>{e.preventDefault();dz.classList.remove(\'dragover\');up(e.dataTransfer.files)})\nfi.addEventListener(\'change\',()=>{up(fi.files);fi.value=\'\'})\nload()\n</script></body></html>', { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8', ..._LC() } })
+}
+async function _LH(ctx) {
+  const { request } = ctx; const u = new URL(request.url); const p = u.pathname.replace(/\/+$/, ''); const o = u.origin
+  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: _LC() })
+  try {
+    if (p === '/api/v1/upload' || p === '/api/v1/upload/' || p === '/api/lsky/api/v1/upload' || p === '/api/lsky/api/v1/upload/') { if (request.method !== 'POST') return new Response('MMA', { status: 405, headers: _LC() }); return _LPU(request, o) }
+    if (p === '/api/lsky' || p === '/api/lsky/') return _LF(u)
+    if (p.startsWith('/api/lsky/upload')) { if (request.method !== 'POST') return new Response('MMA', { status: 405, headers: _LC() }); return _LU(request) }
+    if (p.startsWith('/api/lsky/image/')) { if (request.method !== 'GET') return new Response('MMA', { status: 405, headers: _LC() }); return _LSV(u) }
+    if (p === '/api/lsky/list' || p === '/api/lsky/list/') { if (request.method !== 'GET') return new Response('MMA', { status: 405, headers: _LC() }); return _LL() }
+    if (p.startsWith('/api/lsky/delete/')) { if (request.method !== 'DELETE') return new Response('MMA', { status: 405, headers: _LC() }); return _LDL(u) }
+    return new Response('NF', { status: 404, headers: _LC() })
+  } catch (e) { return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { 'Content-Type': 'application/json', ..._LC() } }) }
+}
+
 // EdgeOne Pages Node Function 入口
 export async function onRequest (context) {
   const { request } = context
+
+  // ===== Lsky Lite 路由 =====
+  try {
+    const _u = new URL(request.url)
+    if (_u.pathname.startsWith('/api/lsky') || _u.pathname.startsWith('/api/v1/upload')) return _LH(context)
+  } catch (e) { /* fall through */ }
 
   // eslint-disable-next-line no-async-promise-executor
   return new Promise(async (resolve) => {
