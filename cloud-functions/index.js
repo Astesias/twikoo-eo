@@ -1337,7 +1337,7 @@ export async function handleLskyRequest (context) {
   const ORIGIN = url.origin
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: lskyCors() })
   try {
-    if (path === '/api/v1/upload' || path === '/api/v1/upload/') {
+    if (path === '/api/v1/upload' || path === '/api/v1/upload/' || path === '/api/lsky/api/v1/upload' || path === '/api/lsky/api/v1/upload/') {
       if (request.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers: lskyCors() })
       return lskyHandleProUpload(request, ORIGIN)
     }
