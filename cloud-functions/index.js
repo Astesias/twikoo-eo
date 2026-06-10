@@ -9,7 +9,6 @@
 import { getStore } from '@edgeone/pages-blob'
 import { Resend } from 'resend'
 import { v4 as uuidv4 } from 'uuid'
-import { lskyRouter } from './lsky-shared.js'
 import xss from 'xss'
 import bowser from 'bowser'
 import {
@@ -1167,27 +1166,9 @@ async function handleAdmin(request, url, res) {
   res.json({ error: 'Unknown action' });
 }
 
-import { lskyRouter } from './lsky-shared.js'
-
 // EdgeOne Pages Node Function 入口
 export async function onRequest (context) {
   const { request } = context
-
-  // ==================== Lsky Lite 图床路由 ====================
-  try {
-    const _url = new URL(request.url)
-    if (_url.pathname.startsWith('/api/lsky') || _url.pathname.startsWith('/api/v1/upload')) {
-      return lskyRouter(context)
-    }
-  } catch (e) { /* fall through */ }
-
-  // ==================== Lsky Lite 路由 ====================
-  try {
-    const _url = new URL(request.url)
-    if (_url.pathname.startsWith('/api/lsky') || _url.pathname.startsWith('/api/v1/upload')) {
-      return handleLskyRequest(context)
-    }
-  } catch (e) { /* fall through */ }
 
   // eslint-disable-next-line no-async-promise-executor
   return new Promise(async (resolve) => {
