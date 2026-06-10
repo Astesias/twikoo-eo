@@ -601,11 +601,26 @@ async function commentSetForAdmin (event, db, accessToken) {
   return res
 }
 
+/** 删除评论时清理关联的 lsky 图片 */
+async function cleanupLskyImages (comment) {
+  if (!comment || !comment.comment) return
+  const matches = comment.comment.match(/\?__lsky=image&id=([a-f0-9-]+)/g)
+  if (!matches) return
+  for (const m of matches) {
+    const id = m.split('=').pop()
+    if (id) {
+      try { await _LD(id) } catch (e) { /* ignore */ }
+    }
+  }
+}
+
 async function commentDeleteForAdmin (event, db, accessToken) {
   const res = {}
   const isAdminUser = isAdmin(accessToken)
   if (isAdminUser) {
     validate(event, ['id'])
+    const comment = await db.getComment(event.id)
+    await cleanupLskyImages(comment)
     await db.deleteComment(event.id)
     res.code = RES_CODE.SUCCESS
     res.deleted = 1
@@ -624,6 +639,8 @@ async function commentDeleteForUser (event, db, accessToken) {
     await checkCommentOwnership(event.id, uid, async (id) => {
       return db.getComment(id)
     })
+    const comment = await db.getComment(event.id)
+    await cleanupLskyImages(comment)
     await db.deleteComment(event.id)
     res.code = RES_CODE.SUCCESS
     res.deleted = 1
@@ -1221,7 +1238,7 @@ async function _LH(ctx) {
   } catch (e) { return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { 'Content-Type': 'application/json', ..._LC() } }) }
 }
 
-/** Handle Twikoo UPLOAD_IMAGE for lskypro directly */
+/** Handle Twikoo UPLOAD_IMAGE for lskypro */
 async function _handleLskyUploadForTwikoo(event) {
   const photo = event.photo; const fileName = event.fileName || 'image.png'
   if (!photo) throw new Error('no image data')
