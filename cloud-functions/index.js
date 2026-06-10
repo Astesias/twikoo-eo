@@ -1481,11 +1481,7 @@ async function handlePost (req, res) {
         result = await emailTest(event, config, isAdmin(accessToken))
         break
       case 'UPLOAD_IMAGE':
-        if (config && config.IMAGE_CDN === 'lskypro') {
-          result = await _handleLskyUploadForTwikoo(event)
-        } else {
-          result = await uploadImage(event, config)
-        }
+        result = await _handleLskyUploadForTwikoo(event)
         break
       case 'COMMENT_EXPORT_FOR_ADMIN':
         result = await commentExportForAdmin(event, db, accessToken)
