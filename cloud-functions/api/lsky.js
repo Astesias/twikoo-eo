@@ -33,7 +33,7 @@ function corsHeaders (origin) {
   return {
     'Access-Control-Allow-Origin': origin || '*',
     'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
   }
 }
 
@@ -80,9 +80,9 @@ async function handleUpload (request) {
   let buffer, fileName, fileType
 
   if (ct.includes('multipart/form-data')) {
-    // 解析 multipart
+    // 解析 multipart（支持 image 或 file 字段名）
     const form = await request.formData()
-    const file = form.get('image')
+    const file = form.get('image') || form.get('file')
     if (!file) return new Response(JSON.stringify({ error: '未提供文件' }), { status: 400, headers: corsHeaders() })
     buffer = await file.arrayBuffer()
     fileName = file.name
@@ -131,6 +131,65 @@ async function handleUpload (request) {
     url,
     name: fileName,
     size: buffer.byteLength
+  }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json', ...corsHeaders() }
+  })
+}
+
+/**
+ * Lsky Pro v2 兼容上传端点
+ * Twikoo 调用路径: POST {IMAGE_CDN_URL}/api/v1/upload
+ * 期望响应: { status: true, data: { links: { url } } }
+ */
+async function handleLskyProUpload (request, origin) {
+  const ct = request.headers.get('content-type') || ''
+  if (!ct.includes('multipart/form-data')) {
+    return new Response(JSON.stringify({ status: false, message: '仅支持 multipart/form-data' }), {
+      status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders() }
+    })
+  }
+
+  const form = await request.formData()
+  const file = form.get('file')
+  if (!file) {
+    return new Response(JSON.stringify({ status: false, message: '未提供文件 (field: file)' }), {
+      status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders() }
+    })
+  }
+
+  const buffer = await file.arrayBuffer()
+  const fileName = file.name
+  const fileType = file.type
+
+  if (buffer.byteLength > MAX_SIZE) {
+    return new Response(JSON.stringify({ status: false, message: `文件过大，最大 ${MAX_SIZE / 1024 / 1024}MB` }), {
+      status: 413, headers: { 'Content-Type': 'application/json', ...corsHeaders() }
+    })
+  }
+  if (!ALLOWED_TYPES.includes(fileType)) {
+    return new Response(JSON.stringify({ status: false, message: `不支持的文件类型: ${fileType}` }), {
+      status: 415, headers: { 'Content-Type': 'application/json', ...corsHeaders() }
+    })
+  }
+
+  const id = uuidv4().replace(/-/g, '')
+  const ext = extFromType(fileType)
+  const now = Date.now()
+  const imageUrl = `${origin}/api/lsky/image/${id}${ext}`
+
+  const meta = {
+    id, name: fileName, ext, type: fileType,
+    size: buffer.byteLength, created: now, updated: now
+  }
+  await addImage(id, buffer, meta)
+
+  // Lsky Pro v2 响应格式
+  return new Response(JSON.stringify({
+    status: true,
+    data: {
+      links: { url: imageUrl }
+    }
   }), {
     status: 200,
     headers: { 'Content-Type': 'application/json', ...corsHeaders() }
@@ -333,13 +392,21 @@ export async function handleLskyRequest (context) {
   const url = new URL(request.url)
   const path = url.pathname.replace(/\/+$/, '')
 
+  // 保存 ORIGIN 供 Lsky Pro 兼容接口使用
+  const ORIGIN = url.origin
+
   // CORS preflight
   if (request.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: corsHeaders(request.headers.get('origin')) })
   }
 
   try {
-    // 路由
+    // Lsky Pro v2 兼容上传端点 (Twikoo 调用)
+    if (path === '/api/v1/upload' || path === '/api/v1/upload/') {
+      if (request.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers: corsHeaders() })
+      return handleLskyProUpload(request, ORIGIN)
+    }
+    // Lsky Lite 路由
     if (path === '/api/lsky' || path === '/api/lsky/') {
       return handleFrontend(request, url)
     }
